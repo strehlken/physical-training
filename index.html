@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Program Analysis & Next Block</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f5f2;
+    --surface: #ffffff;
+    --surface-alt: #f0ede8;
+    --border: #ddd8d0;
+    --border-subtle: #e8e4dc;
+    --text: #1a1a1e;
+    --text-muted: #5a5a60;
+    --text-dim: #8a8a90;
+    --accent-squat: #c4582a;
+    --accent-dead: #a83a3a;
+    --accent-ohp: #2a7a9e;
+    --accent-bench: #2a8a52;
+    --accent-pullup: #7a5aaa;
+    --accent-warm: #b08420;
+    --accent-blue: #2a5a9e;
+    --tab-active: #1a1a1e;
+    --tab-inactive: #8a8a90;
+    --input-bg: #f7f5f2;
+    --input-border: #ccc8c0;
+    --calc-btn: #1a1a1e;
+    --calc-btn-text: #f7f5f2;
+    --tag-bg: #f0ede8;
+    --tag-text: #5a5a60;
+    --highlight: #fffbe6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+    padding: 0;
+  }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem;
+  }
+
+  /* ── Header ── */
+  .page-header {
+    padding: 2.5rem 0 1.5rem;
+    border-bottom: 2px solid var(--text);
+    margin-bottom: 0;
+  }
+  .page-header .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+  }
+  .page-header h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--text);
+  }
+  .page-header .subtitle {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+  }
+
+  /* ── Tab Navigation ── */
+  .tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-btn {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--tab-inactive);
+    background: none;
+    border: none;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--tab-active);
+    border-bottom-color: var(--tab-active);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Section Styling ── */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+  }
+  h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+  }
+  p { margin-bottom: 1rem; max-width: 720px; }
+  strong { font-weight: 700; color: var(--text); }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 0.85rem;
+  }
+  .card-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .dot-squat { background: var(--accent-squat); }
+  .dot-dead { background: var(--accent-dead); }
+  .dot-ohp { background: var(--accent-ohp); }
+  .dot-bench { background: var(--accent-bench); }
+  .dot-pullup { background: var(--accent-pullup); }
+  .dot-vol { background: var(--accent-warm); }
+  .dot-general { background: var(--text-dim); }
+
+  /* ── Lift Rows ── */
+  .lift-row {
+    display: flex;
+    align-items: baseline;
+    padding: 0.3rem 0;
+    gap: 0.6rem;
+    font-size: 0.95rem;
+  }
+  .lift-name {
+    color: var(--text-muted);
+    min-width: 160px;
+    flex-shrink: 0;
+  }
+  .lift-rx {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .lift-note {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-left: auto;
+    text-align: right;
+  }
+  .lift-sep {
+    border: none;
+    border-top: 1px dashed var(--border-subtle);
+    margin: 0.4rem 0;
+  }
+  .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-left: 0.2rem;
+  }
+  .tag-bench { background: #e8f5ec; color: var(--accent-bench); }
+  .tag-pullup { background: #f0eaf8; color: var(--accent-pullup); }
+  .tag-rehab { background: #fff3e0; color: #b06a00; }
+
+  /* ── Week Headers ── */
+  .week-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+  }
+  .week-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .week-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+  .week-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    margin-left: auto;
+  }
+  .week-tag-build { background: var(--tag-bg); color: var(--tag-text); }
+  .week-tag-push { background: #fce8e8; color: var(--accent-dead); }
+  .week-tag-deload { background: #fef9e7; color: var(--accent-warm); }
+  .week-block { margin-bottom: 2.5rem; }
+
+  /* ── Tables ── */
+  .overview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+  }
+  .overview-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  .overview-table td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  .overview-table .wk-label {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .overview-table .wk-dates {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    display: block;
+  }
+
+  /* ── Calculator ── */
+  .calc-section {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 2rem;
+  }
+  .calc-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 0.4rem;
+  }
+  .calc-desc {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  .calc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .calc-field label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+  }
+  .calc-field input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    background: var(--input-bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  .calc-field input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(42,90,158,0.1);
+  }
+  .calc-btn {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: var(--calc-btn);
+    color: var(--calc-btn-text);
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .calc-btn:hover { opacity: 0.85; }
+  .calc-output {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--accent-bench);
+    margin-top: 0.5rem;
+    min-height: 1.2rem;
+  }
+
+  /* ── Comparison items ── */
+  .compare-item {
+    margin-bottom: 1.75rem;
+  }
+  .compare-item h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .verdict {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.12rem 0.45rem;
+    border-radius: 3px;
+    margin-left: 0.3rem;
+  }
+  .verdict-adopt { background: #e8f5ec; color: var(--accent-bench); }
+  .verdict-skip { background: #fce8e8; color: var(--accent-dead); }
+  .verdict-adapt { background: #e8f0f8; color: var(--accent-ohp); }
+
+  /* ── Summary Box ── */
+  .summary-box {
+    background: var(--surface);
+    border-left: 4px solid var(--text);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    border-radius: 0 8px 8px 0;
+  }
+  .summary-box h3 { margin-bottom: 0.5rem; }
+
+  /* ── Schedule Grid ── */
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+  .sched-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 1rem;
+    border-top: 3px solid var(--border);
+  }
+  .sched-card.sc-squat { border-top-color: var(--accent-squat); }
+  .sched-card.sc-upper { border-top-color: var(--accent-ohp); }
+  .sched-card.sc-dead { border-top-color: var(--accent-dead); }
+  .sched-card.sc-vol { border-top-color: var(--accent-warm); }
+  .sched-day {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.3rem;
+  }
+  .sched-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.4rem;
+  }
+  .sched-lifts {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .container { padding: 1rem; }
+    .schedule-grid { grid-template-columns: 1fr 1fr; }
+    .calc-grid { grid-template-columns: 1fr; }
+    .lift-row { flex-wrap: wrap; }
+    .lift-name { min-width: 130px; }
+    .lift-note { margin-left: 0; text-align: left; width: 100%; }
+    .tab-btn { padding: 0.75rem 0.75rem; font-size: 0.78rem; }
+    .overview-table { font-size: 0.78rem; }
+    .page-header h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<div class="page-header">
+  <div class="label">Program Design Document</div>
+  <h1>Training Block Analysis & Next Cycle</h1>
+  <div class="subtitle">Cross-referencing a considered program against current goals, constraints, and trajectory. Apr 2026.</div>
+</div>
+
+<!-- ═══════════════════ TAB NAV ═══════════════════ -->
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="goals">Nick's Goals</button>
+  <button class="tab-btn" data-tab="considered">Considered Program</button>
+  <button class="tab-btn" data-tab="analysis">Analysis & Comparison</button>
+  <button class="tab-btn" data-tab="newprog">New Program</button>
+  <button class="tab-btn" data-tab="current">Current Program</button>
+</nav>
+
+<!-- ═══════════════════ TAB 1: NICK'S GOALS ═══════════════════ -->
+<div class="tab-content active" id="tab-goals">
+  <h2>Goals & Constraints</h2>
+
+  <div class="section-label">Primary Strength Targets</div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-squat"></span> Squat — 300 for Reps</div>
+    <p>Target is 300 lbs for 5+ reps within roughly 6 months. Estimated current max is ~285-290 (260×4 completed W4 of current block). Squatting twice per week: heavy day drives top-end, volume day builds work capacity.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-dead"></span> Deadlift — 400</div>
+    <p>Long-term target. Estimated current max ~335-340. On pace to reach 400 in roughly 3-4 more training blocks (5-6 months). Building steadily — no rush.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-ohp"></span> OHP — Recalibrated Upward</div>
+    <p>Was previously peaked at 102.5×4-5. Hit 135 for two singles before this block, revealing the old track was sandbagging. Now running from 110×5 up to 130×2-3 in the push week. No specific long-term number target — just keep building.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-bench"></span> Bench — Graduating from Rehab</div>
+    <p>Shoulder rehab protocol: +5 lbs per session, twice per week, 3×8. Started at 95 before this block. Should be around 130-135 this week if progression held. Pain rule governs: 0-3/10 during set, baseline by next morning. Ready to transition to normal programming in the next block.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-pullup"></span> Pull-ups — 20 Reps Bodyweight</div>
+    <p>Currently in ROM rehab, extending toward full dead hang. By end of this block, full ROM should be established. Next block begins real volume accumulation toward the 20-rep target. This is an endurance goal, not a max-strength goal.</p>
+  </div>
+
+  <div class="section-label" style="margin-top:2rem;">Hard Constraints</div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-general"></span> Equipment & Schedule</div>
+    <p><strong>Equipment:</strong> single 45 lb barbell, squat rack, flat bench, pull-up bar. No dumbbells, no machines, no cables. Everything is barbell or bodyweight.</p>
+    <p><strong>Schedule:</strong> 4 days per week, sessions capped at 45 minutes. Not negotiable — work and family come first.</p>
+    <p><strong>Philosophy:</strong> Steady sustainable progress. Not a peak-performance block. If sessions run long, cut optional core first, then trim a backoff set.</p>
+  </div>
+
+  <div class="section-label" style="margin-top:2rem;">Active Injury Concerns</div>
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#c4582a;"></span> Monitoring</div>
+    <p><strong>Shoulder:</strong> Ongoing rehab. Bench and pull-ups both progressing under pain-rule protocol. Barbell rows conditional on shoulder tolerance.</p>
+    <p><strong>Lower back:</strong> RDLs were dropped in the prior block after a strain signal. Reintroduced conservatively at 175 this block — has been fine through W3. Keep monitoring.</p>
+    <p><strong>Right knee:</strong> Minor ache appeared after W3 volume squats (4×6 @ 210). Did not limit W4 heavy squat (260×4). Monitoring — if it persists, may need to adjust volume day load or ensure a rest day between Sat and Sun squat sessions.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 2: CONSIDERED PROGRAM ═══════════════════ -->
+<div class="tab-content" id="tab-considered">
+  <h2>A Considered Program — Another Lifter</h2>
+  <p>6-week program for a 200 lb lifter targeting a 405 squat. Two 3-week blocks with descending sets and ascending weight. Accessories shift from 4×10 (block 1) to 5×8 (block 2). Full gym access including dumbbells, machines, and cables. 6 training days per week.</p>
+
+  <div class="section-label">Block 1 — Weeks 1–3</div>
+  <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1.5rem;">Sets descend 5→4→3 each week. Weight increases. Accessories at 4×10. Rest: 2 min for 8s, 3 min for 5s, 4+ min for 3s.</p>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-squat"></span> Monday — Squat (High Rep)</div>
+    <div class="lift-row"><span class="lift-name">Snatch (from knee)</span><span class="lift-rx">3×2 — by feel</span></div>
+    <div class="lift-row"><span class="lift-name">Squat</span><span class="lift-rx">5×8 @ 218 → 4×8 @ 233 → 3×8 @ 249</span></div>
+    <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">4×10 @ 185</span></div>
+    <div class="lift-row"><span class="lift-name">Core / Abs</span><span class="lift-rx">4×10</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-bench"></span> Tuesday — Bench (High Rep)</div>
+    <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">5×8 @ 195 → 4×8 @ 199 → 3×8 @ 212</span></div>
+    <div class="lift-row"><span class="lift-name">Incline DB press</span><span class="lift-rx">4×10 @ 55 ea</span></div>
+    <div class="lift-row"><span class="lift-name">Skull crushers</span><span class="lift-rx">4×10 @ 90</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-dead"></span> Wednesday — Deadlift + Pull-up</div>
+    <div class="lift-row"><span class="lift-name">Snatch (from hip)</span><span class="lift-rx">3×2 — by feel</span></div>
+    <div class="lift-row"><span class="lift-name">Deadlift</span><span class="lift-rx">1×5 @ 340 → 1×4 @ 350 → 1×3 @ 360</span></div>
+    <div class="lift-row"><span class="lift-name">Weighted pull-up</span><span class="lift-rx">5×8 → 4×8 → 3×8 @ +10</span></div>
+    <div class="lift-row"><span class="lift-name">Chest-supported DB row</span><span class="lift-rx">4×10 @ 60 ea</span></div>
+    <div class="lift-row"><span class="lift-name">Lat pull-down</span><span class="lift-rx">4×10 @ 190</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-general"></span> Thursday — Run</div>
+    <div class="lift-row"><span class="lift-name">Conditioning</span><span class="lift-rx">Run day</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-squat"></span> Friday — Squat (Low Rep)</div>
+    <div class="lift-row"><span class="lift-name">Snatch (from floor)</span><span class="lift-rx">3×1 — by feel</span></div>
+    <div class="lift-row"><span class="lift-name">Squat</span><span class="lift-rx">5×5 @ 242 → 4×5 @ 258 → 3×5 @ 264</span></div>
+    <div class="lift-row"><span class="lift-name">Step-ups</span><span class="lift-rx">4×10 @ 105</span></div>
+    <div class="lift-row"><span class="lift-name">Core / Abs</span><span class="lift-rx">4×10</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-bench"></span> Saturday — Bench (Low Rep) + Pull-up</div>
+    <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">5×5 @ 207 → 4×5 @ 220 → 3×5 @ 225</span></div>
+    <div class="lift-row"><span class="lift-name">Weighted pull-up</span><span class="lift-rx">5×5 → 4×5 → 3×5 @ +10</span></div>
+    <div class="lift-row"><span class="lift-name">Dips</span><span class="lift-rx">4×10 @ +35</span></div>
+    <div class="lift-row"><span class="lift-name">Lat pull-down</span><span class="lift-rx">4×10 @ 190</span></div>
+    <div class="lift-row"><span class="lift-name">Run</span><span class="lift-rx">After session</span></div>
+  </div>
+
+  <div class="section-label" style="margin-top:2.5rem;">Block 2 — Weeks 4–6</div>
+  <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1.5rem;">1RMs recalculated after week 3. Rep schemes shift to 5s and 3s. Accessories move to 5×8 with slight weight increase.</p>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-squat"></span> Monday — Squat (High Rep → 5s)</div>
+    <div class="lift-row"><span class="lift-name">Snatch complex</span><span class="lift-rx">3×2</span></div>
+    <div class="lift-row"><span class="lift-name">Squat</span><span class="lift-rx">5×5 @ 256 → 4×5 @ 272 → 3×5 @ 278</span></div>
+    <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">5×8 @ 200</span></div>
+    <div class="lift-row"><span class="lift-name">Core / Abs</span><span class="lift-rx">5×8</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-bench"></span> Tuesday — Bench (High Rep → 5s)</div>
+    <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">5×5 @ 219 → 4×5 @ 233 → 3×5 @ 238</span></div>
+    <div class="lift-row"><span class="lift-name">Incline DB press</span><span class="lift-rx">5×8 @ 60 ea</span></div>
+    <div class="lift-row"><span class="lift-name">Skull crushers</span><span class="lift-rx">5×8 @ 95</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-dead"></span> Wednesday — Deadlift + Pull-up</div>
+    <div class="lift-row"><span class="lift-name">Snatch (from hip)</span><span class="lift-rx">3×2</span></div>
+    <div class="lift-row"><span class="lift-name">Deadlift</span><span class="lift-rx">1×5 @ 350 → 1×4 @ 360 → 1×3 @ 370</span></div>
+    <div class="lift-row"><span class="lift-name">Weighted pull-up</span><span class="lift-rx">5×5 → 4×5 → 3×5 — recalc'd</span></div>
+    <div class="lift-row"><span class="lift-name">Chest-supported DB row</span><span class="lift-rx">5×8 @ 65 ea</span></div>
+    <div class="lift-row"><span class="lift-name">Lat pull-down</span><span class="lift-rx">5×8 @ 200</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-general"></span> Thursday — Run</div>
+    <div class="lift-row"><span class="lift-name">Conditioning</span><span class="lift-rx">Run day</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-squat"></span> Friday — Squat (Low Rep → 3s)</div>
+    <div class="lift-row"><span class="lift-name">Snatch (from floor)</span><span class="lift-rx">3×1</span></div>
+    <div class="lift-row"><span class="lift-name">Squat</span><span class="lift-rx">5×3 @ 266 → 4×3 @ 282 → 3×3 @ 298</span></div>
+    <div class="lift-row"><span class="lift-name">Step-ups</span><span class="lift-rx">5×8 @ 115</span></div>
+    <div class="lift-row"><span class="lift-name">Core / Abs</span><span class="lift-rx">5×8</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-bench"></span> Saturday — Bench (Low Rep → 3s) + Pull-up</div>
+    <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">5×3 @ 227 → 4×3 @ 241 → 3×3 @ 255</span></div>
+    <div class="lift-row"><span class="lift-name">Weighted pull-up</span><span class="lift-rx">5×3 → 4×3 → 3×3 — recalc'd</span></div>
+    <div class="lift-row"><span class="lift-name">Dips</span><span class="lift-rx">5×8 @ +45</span></div>
+    <div class="lift-row"><span class="lift-name">Lat pull-down</span><span class="lift-rx">5×8 @ 200</span></div>
+    <div class="lift-row"><span class="lift-name">Run</span><span class="lift-rx">After session</span></div>
+  </div>
+
+  <div class="section-label" style="margin-top:2.5rem;">Programming Rules</div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-general"></span> Key Rules</div>
+    <p>Rest: 2 min for sets of 8, 3 min for sets of 5, 4+ min for sets of 3 on main lifts. Accessories: no more than 2 min rest.</p>
+    <p>Round squat and bench to nearest 5 lbs.</p>
+    <p>Recalculate 1RMs after week 3 using the final 3-rep (or final top set) weight: <strong>est max = weight × (1 + reps / 30)</strong>.</p>
+    <p>Test pull-up 1RM at end of week 3, use that to anchor block 2 pull-up weights.</p>
+    <p>Deadlift: if any week feels like a grind, hold the weight and don't force the jump.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 3: ANALYSIS ═══════════════════ -->
+<div class="tab-content" id="tab-analysis">
+  <h2>Analysis & Comparison</h2>
+
+  <div class="summary-box">
+    <h3>Summary Takeaway</h3>
+    <p>The considered program is built for a lifter with more time (6 days/week), full gym access (dumbbells, machines, cables, dip bars), and no active injury constraints. Its core structural ideas are excellent — the 2×3-week block with mid-cycle recalculation, the high-rep / low-rep split for squat and bench, and the systematic volume management. Three of these ideas transfer directly to Nick's setup. The equipment-dependent accessories, Olympic lifts, and 6-day frequency do not. Bench and pull-ups, having graduated from rehab, can now be programmed as real lifts using similar structure — that's the biggest practical gain from studying this program.</p>
+  </div>
+
+  <div class="section-label">Inferred Goals & Constraints of the Considered Program</div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot dot-general"></span> What This Program Is Trying to Do</div>
+    <p><strong>Primary goal:</strong> Squat 405, with bench and deadlift progressing in parallel. This is a strength-focused block with high training volume.</p>
+    <p><strong>Structure:</strong> Descending sets (5→4→3) within each 3-week wave. Weight climbs as sets drop. Block 2 recalculates from block 1 results and shifts rep targets lower (8s→5s on "high rep" days, 5s→3s on "low rep" days). This is clean auto-regulation — total volume decreases naturally as intensity increases.</p>
+    <p><strong>Frequency:</strong> 6 training days per week. Each major lift hit twice: squat Mon (8s) + Fri (5s/3s), bench Tue (8s) + Sat (5s/3s). Pull-ups Wed + Sat. Running Thu + Sat post-session.</p>
+    <p><strong>Equipment:</strong> Full gym — barbell, dumbbells, machines (lat pulldown), dip bars. Allows substantial accessory volume: incline DB press, skull crushers, chest-supported rows, lat pulldowns, step-ups, dips.</p>
+    <p><strong>Conditioning:</strong> Dedicated run day plus a post-session run on Saturday. Aerobic base is part of the plan.</p>
+    <p><strong>Olympic work:</strong> Snatches used as movement primers 3×/week (from knee, hip, floor). Technical — not for load. Suggests the lifter has an Olympic lifting background or is developing one.</p>
+    <p><strong>Injury status:</strong> None mentioned. No rehab protocols, no pain rules, no movement restrictions. Everything is programmed aggressively from day one.</p>
+  </div>
+
+  <div class="section-label" style="margin-top:2rem;">Where This Differs From Nick's Constraints</div>
+
+  <div class="compare-item">
+    <h3>Training Days <span class="verdict verdict-skip">cannot adopt</span></h3>
+    <p>6 days vs 4. This is the single biggest gap. The considered program distributes work across 50% more training days. Compressing their volume into 4 sessions would blow past 45-minute caps or create unsustainable fatigue. Nick's schedule is fixed.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>Equipment <span class="verdict verdict-skip">cannot adopt</span></h3>
+    <p>DB press, skull crushers, chest-supported rows, lat pulldowns, step-ups, dips — none possible with Nick's setup. Nick's accessory pool is limited to barbell movements (RDLs, front squats, good mornings, barbell rows) and bodyweight (pull-ups, core). The volume those machine/DB accessories provide cannot be replicated 1:1, but the main lifts and barbell accessories cover the essential muscle groups.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>Olympic Lifts <span class="verdict verdict-skip">does not apply</span></h3>
+    <p>Snatches are a skill-specific movement that serves this lifter's development. Not relevant to Nick's goals and not worth introducing without coaching and the right equipment context.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>No Injury Management <span class="verdict verdict-skip">cannot adopt</span></h3>
+    <p>The considered program has no pain rules, no rehab tracks, no conditional movements. Nick has an active shoulder (governing bench and pull-up loading), a lower back on watch (RDLs conditional), and a right knee being monitored. Even as bench and pull-ups graduate from rehab protocol, the pain rule stays as a safety net for at least one more block. Rows remain trial-only.</p>
+  </div>
+
+  <div class="section-label" style="margin-top:2rem;">What Transfers — And How</div>
+
+  <div class="compare-item">
+    <h3>2 × 3-Week Block Structure with Mid-Cycle Recalculation <span class="verdict verdict-adopt">adopted</span></h3>
+    <p>This is the cleanest structural improvement available. Instead of projecting 6 weeks of numbers upfront (current approach), commit to a 3-week block, use the week 3 top sets to recalculate estimated maxes via formula (weight × (1 + reps/30)), and derive block 2 weights from real data. The skeleton stays the same — same days, same movements, same philosophy — but the numbers update based on performance. This eliminates the guesswork in weeks 4-6 and gives a built-in checkpoint. Deload follows as week 7.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>High-Rep / Low-Rep Split for Squat <span class="verdict verdict-adopt">adopted</span></h3>
+    <p>Nick already squats twice per week, but both sessions use similar rep ranges (4-5 on heavy day, 6 on volume day). The considered program sharply differentiates: one day at 8s, one day at 5s/3s. For the 300-for-reps goal, this is a better split. Heavy day builds top-end strength with low-rep work. Volume day at 8s builds the muscular endurance and work capacity that lets you actually grind out a set of 5+ at 300 when the time comes. Adopted: heavy day stays as top set + backoffs at descending reps (5→4→3→4→3→2), volume day shifts from 6s to 8s at proportionally lighter weight.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>Bench Programmed as a Real Lift, Twice Per Week <span class="verdict verdict-adopt">adopted</span></h3>
+    <p>With bench graduating from rehab, there's no reason it can't receive the same programming treatment as squat — a heavier day (Tue, lower reps) and a volume day (Sat, higher reps). The considered program runs bench this way with the same descending-sets wave. Nick's version uses the same days (Tue/Sat) with descending reps and ascending weight, structured within the 2×3-week block framework. Pain rule stays as a safety net but is no longer the primary programming driver.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>Pull-Up Volume for Endurance Goal <span class="verdict verdict-adapt">adapted</span></h3>
+    <p>The considered program runs weighted pull-ups for strength. Nick's goal is 20 bodyweight reps — an endurance target. The structural idea of programming pull-ups 2×/week with real intent transfers, but the execution is different: bodyweight only, progressive rep accumulation, building toward sets of 8-10+ before eventually consolidating into fewer bigger sets. Weighted pull-ups become relevant later once 12-15 clean reps are established.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>Conditioning / Running <span class="verdict verdict-skip">not adopted</span></h3>
+    <p>The considered program includes a dedicated run day and a post-session run. Not adopted — Nick's 4-day schedule doesn't have room for a dedicated conditioning day, and adding runs after 45-minute sessions pushes past the time cap. Conditioning is outside the current scope.</p>
+  </div>
+
+  <div class="compare-item">
+    <h3>Descending Sets Wave (5→4→3 sets) <span class="verdict verdict-skip">not adopted</span></h3>
+    <p>The considered program's signature move — dropping from 5 working sets to 4 to 3 while weight climbs. This works when you have long sessions and can absorb 5 sets of heavy squats in week 1. Within 45 minutes and 3-4 movements per day, starting at 5 working sets would either blow session time or force cutting accessories that matter. Nick's existing approach of stable set counts with descending reps achieves the same fatigue-management intent in a tighter package. Left alone.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 4: NEW PROGRAM ═══════════════════ -->
+<div class="tab-content" id="tab-newprog">
+  <h2>Next Block — May 3 – Jun 20, 2026</h2>
+  <p>7 weeks. Two 3-week build waves + 1 deload. Mid-cycle 1RM recalculation after week 3. 4 days/week, 45-min sessions. Squat volume day shifts to 8s. Bench graduates to full programming. Pull-ups run bodyweight volume for 20-rep goal.</p>
+
+  <!-- ── Block 1 Calculator ── -->
+  <div class="calc-section" id="calc-block1">
+    <div class="calc-title">Block 1 Calculator — Enter Your Finishing Maxes</div>
+    <div class="calc-desc">Enter your estimated 1RMs after completing the current block (post-deload). These drive all Block 1 weights. Default values are projections from your current trajectory — adjust based on actual results.</div>
+    <div class="calc-grid">
+      <div class="calc-field">
+        <label>Squat Est. Max</label>
+        <input type="number" id="sq-max" value="295" step="5">
+      </div>
+      <div class="calc-field">
+        <label>Deadlift Est. Max</label>
+        <input type="number" id="dl-max" value="350" step="5">
+      </div>
+      <div class="calc-field">
+        <label>OHP Est. Max</label>
+        <input type="number" id="ohp-max" value="145" step="5">
+      </div>
+      <div class="calc-field">
+        <label>Bench Est. Max</label>
+        <input type="number" id="bn-max" value="170" step="5">
+      </div>
+    </div>
+    <button class="calc-btn" onclick="calcBlock1()">Calculate Block 1</button>
+    <div class="calc-output" id="calc1-output"></div>
+  </div>
+
+  <!-- ── Schedule ── -->
+  <div class="section-label">Weekly Schedule</div>
+  <div class="schedule-grid">
+    <div class="sched-card sc-squat">
+      <div class="sched-day">Sun / Mon</div>
+      <div class="sched-title">Heavy Squat</div>
+      <div class="sched-lifts">Back squat — top + backoffs<br>RDLs<br>Pull-ups (BW)<br>Core (optional)</div>
+    </div>
+    <div class="sched-card sc-upper">
+      <div class="sched-day">Tuesday</div>
+      <div class="sched-title">OHP + Bench</div>
+      <div class="sched-lifts">OHP — top + backoffs<br>Bench — heavy day<br>Barbell rows (trial)</div>
+    </div>
+    <div class="sched-card sc-dead">
+      <div class="sched-day">Thursday</div>
+      <div class="sched-title">Deadlift</div>
+      <div class="sched-lifts">Deadlift — top + backoffs<br>Front squat<br>Pull-ups (BW)</div>
+    </div>
+    <div class="sched-card sc-vol">
+      <div class="sched-day">Saturday</div>
+      <div class="sched-title">Squat Volume</div>
+      <div class="sched-lifts">Back squat — 8s<br>Bench — volume day<br>Good mornings<br>Core</div>
+    </div>
+  </div>
+
+  <!-- ── Overview Table ── -->
+  <div class="section-label">Progression Overview</div>
+  <table class="overview-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th style="color:var(--accent-squat);">Squat (Heavy)</th>
+        <th style="color:var(--accent-dead);">Deadlift</th>
+        <th style="color:var(--accent-ohp);">OHP</th>
+        <th style="color:var(--accent-squat);">Squat (Vol)</th>
+        <th style="color:var(--accent-bench);">Bench (Heavy)</th>
+        <th style="color:var(--accent-bench);">Bench (Vol)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="wk-label">W1 <span class="wk-dates">May 3–9</span></td>
+        <td><span class="b1-sq-h1"></span>×5</td>
+        <td><span class="b1-dl-h1"></span>×4</td>
+        <td><span class="b1-ohp-h1"></span>×5</td>
+        <td>4×8 @ <span class="b1-sq-v1"></span></td>
+        <td>3×5 @ <span class="b1-bn-h1"></span></td>
+        <td>3×8 @ <span class="b1-bn-v1"></span></td>
+      </tr>
+      <tr>
+        <td class="wk-label">W2 <span class="wk-dates">May 10–16</span></td>
+        <td><span class="b1-sq-h2"></span>×4</td>
+        <td><span class="b1-dl-h2"></span>×3</td>
+        <td><span class="b1-ohp-h2"></span>×4</td>
+        <td>4×8 @ <span class="b1-sq-v2"></span></td>
+        <td>3×5 @ <span class="b1-bn-h2"></span></td>
+        <td>3×8 @ <span class="b1-bn-v2"></span></td>
+      </tr>
+      <tr>
+        <td class="wk-label">W3 <span class="wk-dates">May 17–23</span></td>
+        <td><span class="b1-sq-h3"></span>×3</td>
+        <td><span class="b1-dl-h3"></span>×2</td>
+        <td><span class="b1-ohp-h3"></span>×3</td>
+        <td>4×8 @ <span class="b1-sq-v3"></span></td>
+        <td>3×4 @ <span class="b1-bn-h3"></span></td>
+        <td>3×8 @ <span class="b1-bn-v3"></span></td>
+      </tr>
+      <tr style="color:var(--text-dim);font-style:italic;">
+        <td class="wk-label" style="color:var(--text-dim);">W4 <span class="wk-dates">May 24–30</span></td>
+        <td><span class="b2-sq-h4"></span>×4</td>
+        <td><span class="b2-dl-h4"></span>×3</td>
+        <td><span class="b2-ohp-h4"></span>×4</td>
+        <td>4×6 @ <span class="b2-sq-v4"></span></td>
+        <td>3×4 @ <span class="b2-bn-h4"></span></td>
+        <td>3×6 @ <span class="b2-bn-v4"></span></td>
+      </tr>
+      <tr style="color:var(--text-dim);font-style:italic;">
+        <td class="wk-label" style="color:var(--text-dim);">W5 <span class="wk-dates">May 31–Jun 6</span></td>
+        <td><span class="b2-sq-h5"></span>×3</td>
+        <td><span class="b2-dl-h5"></span>×2</td>
+        <td><span class="b2-ohp-h5"></span>×3</td>
+        <td>4×6 @ <span class="b2-sq-v5"></span></td>
+        <td>3×3 @ <span class="b2-bn-h5"></span></td>
+        <td>3×6 @ <span class="b2-bn-v5"></span></td>
+      </tr>
+      <tr style="color:var(--text-dim);font-style:italic;">
+        <td class="wk-label" style="color:var(--text-dim);">W6 <span class="wk-dates">Jun 7–13</span></td>
+        <td><span class="b2-sq-h6"></span>×2</td>
+        <td><span class="b2-dl-h6"></span>×1-2</td>
+        <td><span class="b2-ohp-h6"></span>×2</td>
+        <td>3×6 @ <span class="b2-sq-v6"></span></td>
+        <td>3×2 @ <span class="b2-bn-h6"></span></td>
+        <td>3×5 @ <span class="b2-bn-v6"></span></td>
+      </tr>
+      <tr style="color:var(--text-dim);font-style:italic;">
+        <td class="wk-label" style="color:var(--text-dim);">W7 <span class="wk-dates">Jun 14–20</span></td>
+        <td colspan="6" style="text-align:center;">Deload — singles at RPE 7-8, reduced volume</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── BLOCK 1 DETAIL ── -->
+  <div class="section-label" style="margin-top:2rem;">Block 1 — Weeks 1–3 (Build)</div>
+
+  <div class="week-block">
+    <div class="week-header">
+      <div class="week-num">W1</div>
+      <div class="week-meta">May 3 – 9</div>
+      <div class="week-tag week-tag-build">build</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx"><span class="b1-sq-h1"></span> × 5</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 5 @ <span class="b1-sq-bo1"></span></span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ <span class="b1-rdl1"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">3 × 6</span><span class="lift-note">full ROM — confirm stability</span></div>
+      <div class="lift-row"><span class="lift-name">Plank (optional)</span><span class="lift-rx">2 × 45s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench (Heavy)</div>
+      <div class="lift-row"><span class="lift-name">Overhead press (top)</span><span class="lift-rx"><span class="b1-ohp-h1"></span> × 5</span></div>
+      <div class="lift-row"><span class="lift-name">Overhead press (backoff)</span><span class="lift-rx">3 × 5 @ <span class="b1-ohp-bo1"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 5 @ <span class="b1-bn-h1"></span></span><span class="lift-note">pain rule still active as safety net</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10 — moderate</span><span class="lift-note">trial — drop if shoulder objects</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx"><span class="b1-dl-h1"></span> × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 3 @ <span class="b1-dl-bo1"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 6 @ <span class="b1-fs1"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">3 × 6</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Volume</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 8 @ <span class="b1-sq-v1"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 8 @ <span class="b1-bn-v1"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 75</span><span class="lift-note">keep light</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header">
+      <div class="week-num">W2</div>
+      <div class="week-meta">May 10 – 16</div>
+      <div class="week-tag week-tag-build">build</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx"><span class="b1-sq-h2"></span> × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 4 @ <span class="b1-sq-bo2"></span></span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ <span class="b1-rdl2"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">3 × 7</span></div>
+      <div class="lift-row"><span class="lift-name">Plank</span><span class="lift-rx">2 × 50s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench (Heavy)</div>
+      <div class="lift-row"><span class="lift-name">Overhead press (top)</span><span class="lift-rx"><span class="b1-ohp-h2"></span> × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Overhead press (backoff)</span><span class="lift-rx">3 × 4 @ <span class="b1-ohp-bo2"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 5 @ <span class="b1-bn-h2"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx"><span class="b1-dl-h2"></span> × 3</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 2 @ <span class="b1-dl-bo2"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 6 @ <span class="b1-fs2"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">3 × 7</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Volume</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 8 @ <span class="b1-sq-v2"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 8 @ <span class="b1-bn-v2"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 80</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header">
+      <div class="week-num">W3</div>
+      <div class="week-meta">May 17 – 23</div>
+      <div class="week-tag week-tag-push">push</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx"><span class="b1-sq-h3"></span> × 3</span><span class="lift-note">record this for recalc</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 3 @ <span class="b1-sq-bo3"></span></span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ <span class="b1-rdl3"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 6</span><span class="lift-note">adding a set</span></div>
+      <div class="lift-row"><span class="lift-name">Plank</span><span class="lift-rx">3 × 45s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench (Heavy)</div>
+      <div class="lift-row"><span class="lift-name">Overhead press (top)</span><span class="lift-rx"><span class="b1-ohp-h3"></span> × 3</span><span class="lift-note">record this for recalc</span></div>
+      <div class="lift-row"><span class="lift-name">Overhead press (backoff)</span><span class="lift-rx">3 × 3 @ <span class="b1-ohp-bo3"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 4 @ <span class="b1-bn-h3"></span></span><span class="lift-note">record for recalc</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx"><span class="b1-dl-h3"></span> × 2</span><span class="lift-note">record this for recalc</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 2 @ <span class="b1-dl-bo3"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 5 @ <span class="b1-fs3"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 6</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Volume</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 8 @ <span class="b1-sq-v3"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 8 @ <span class="b1-bn-v3"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 80</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <!-- ── Mid-Cycle Calculator ── -->
+  <div class="calc-section" id="calc-block2" style="margin-top:2rem;">
+    <div class="calc-title">Week 3 Checkpoint — Recalculate for Block 2</div>
+    <div class="calc-desc">After completing week 3, enter your actual top set results below. Formula: est max = weight × (1 + reps / 30). Block 2 weights are derived from the new estimated maxes.</div>
+    <div class="calc-grid">
+      <div class="calc-field">
+        <label>Squat W3 top — weight</label>
+        <input type="number" id="sq-w3-wt" placeholder="e.g. 265" step="5">
+      </div>
+      <div class="calc-field">
+        <label>Squat W3 top — reps</label>
+        <input type="number" id="sq-w3-reps" placeholder="e.g. 3" step="1">
+      </div>
+      <div class="calc-field">
+        <label>Deadlift W3 top — weight</label>
+        <input type="number" id="dl-w3-wt" placeholder="e.g. 320" step="5">
+      </div>
+      <div class="calc-field">
+        <label>Deadlift W3 top — reps</label>
+        <input type="number" id="dl-w3-reps" placeholder="e.g. 2" step="1">
+      </div>
+      <div class="calc-field">
+        <label>OHP W3 top — weight</label>
+        <input type="number" id="ohp-w3-wt" placeholder="e.g. 130" step="5">
+      </div>
+      <div class="calc-field">
+        <label>OHP W3 top — reps</label>
+        <input type="number" id="ohp-w3-reps" placeholder="e.g. 3" step="1">
+      </div>
+      <div class="calc-field">
+        <label>Bench W3 heavy — weight</label>
+        <input type="number" id="bn-w3-wt" placeholder="e.g. 160" step="5">
+      </div>
+      <div class="calc-field">
+        <label>Bench W3 heavy — reps</label>
+        <input type="number" id="bn-w3-reps" placeholder="e.g. 4" step="1">
+      </div>
+    </div>
+    <button class="calc-btn" onclick="calcBlock2()">Calculate Block 2</button>
+    <div class="calc-output" id="calc2-output"></div>
+  </div>
+
+  <!-- ── BLOCK 2 DETAIL ── -->
+  <div class="section-label" style="margin-top:2rem;">Block 2 — Weeks 4–6 (Build)</div>
+  <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1.5rem;">Weights derived from week 3 recalculation. Rep targets shift lower: heavy squat 4→3→2, volume squat 6s, deadlift 3→2→1-2, bench heavier. Italicized values in the overview table update when you run the calculator above.</p>
+
+  <div class="week-block">
+    <div class="week-header">
+      <div class="week-num">W4</div>
+      <div class="week-meta">May 24 – 30</div>
+      <div class="week-tag week-tag-build">build</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx"><span class="b2-sq-h4"></span> × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 3 @ <span class="b2-sq-bo4"></span></span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ <span class="b2-rdl4"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 7</span></div>
+      <div class="lift-row"><span class="lift-name">Plank</span><span class="lift-rx">3 × 50s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench (Heavy)</div>
+      <div class="lift-row"><span class="lift-name">Overhead press (top)</span><span class="lift-rx"><span class="b2-ohp-h4"></span> × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Overhead press (backoff)</span><span class="lift-rx">3 × 3 @ <span class="b2-ohp-bo4"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 4 @ <span class="b2-bn-h4"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx"><span class="b2-dl-h4"></span> × 3</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 2 @ <span class="b2-dl-bo4"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 5 @ <span class="b2-fs4"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 7</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Volume</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 6 @ <span class="b2-sq-v4"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 6 @ <span class="b2-bn-v4"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 80</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header">
+      <div class="week-num">W5</div>
+      <div class="week-meta">May 31 – Jun 6</div>
+      <div class="week-tag week-tag-build">build</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx"><span class="b2-sq-h5"></span> × 3</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 2 @ <span class="b2-sq-bo5"></span></span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ <span class="b2-rdl5"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 8</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench (Heavy)</div>
+      <div class="lift-row"><span class="lift-name">Overhead press (top)</span><span class="lift-rx"><span class="b2-ohp-h5"></span> × 3</span></div>
+      <div class="lift-row"><span class="lift-name">Overhead press (backoff)</span><span class="lift-rx">3 × 2 @ <span class="b2-ohp-bo5"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 3 @ <span class="b2-bn-h5"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx"><span class="b2-dl-h5"></span> × 2</span><span class="lift-note">smooth — no grinding</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 1 @ <span class="b2-dl-bo5"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 5 @ <span class="b2-fs5"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 8</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Volume</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 6 @ <span class="b2-sq-v5"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 6 @ <span class="b2-bn-v5"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 80</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header">
+      <div class="week-num">W6</div>
+      <div class="week-meta">Jun 7 – 13</div>
+      <div class="week-tag week-tag-push">push</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx"><span class="b2-sq-h6"></span> × 2</span><span class="lift-note">block PR territory</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 2 @ <span class="b2-sq-bo6"></span></span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 6 @ <span class="b2-rdl6"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 8</span><span class="lift-note">hold here — consolidate</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench (Heavy)</div>
+      <div class="lift-row"><span class="lift-name">Overhead press (top)</span><span class="lift-rx"><span class="b2-ohp-h6"></span> × 2</span></div>
+      <div class="lift-row"><span class="lift-name">Overhead press (backoff)</span><span class="lift-rx">3 × 2 @ <span class="b2-ohp-bo6"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 2 @ <span class="b2-bn-h6"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx"><span class="b2-dl-h6"></span> × 1-2</span><span class="lift-note">smooth — no grinding</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">2 × 1 @ <span class="b2-dl-bo6"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 4 @ <span class="b2-fs6"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">4 × 8</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Volume</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">3 × 6 @ <span class="b2-sq-v6"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">3 × 5 @ <span class="b2-bn-v6"></span></span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 80</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <!-- ── DELOAD WEEK ── -->
+  <div class="section-label" style="margin-top:2rem;">Deload — Week 7</div>
+  <div class="week-block">
+    <div class="week-header">
+      <div class="week-num">W7</div>
+      <div class="week-meta">Jun 14 – 20</div>
+      <div class="week-tag week-tag-deload">deload</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Squat Deload</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">1 single @ <span class="dl-sq"></span> (RPE 7-8), then 2 × 3 @ <span class="dl-sq-bo"></span></span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">2 × 8 @ <span class="dl-rdl"></span></span><span class="lift-note">easy</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">2 × 6 — easy</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP Deload + Bench</div>
+      <div class="lift-row"><span class="lift-name">Overhead press</span><span class="lift-rx">1 single @ <span class="dl-ohp"></span> (RPE 7), then 2 × 5 @ <span class="dl-ohp-bo"></span></span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">2 × 8 — light</span><span class="lift-note">maintain, don't push</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">2 × 10 — easy</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift Deload</div>
+      <div class="lift-row"><span class="lift-name">Deadlift</span><span class="lift-rx">3 singles @ <span class="dl-dl"></span> (RPE 7-8, fast)</span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">2 × 5 @ <span class="dl-fs"></span></span><span class="lift-note">easy</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups (BW)</span><span class="lift-rx">2 × 6 — easy</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Easy Pump + Mobility</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">3 × 5 @ <span class="dl-sq-vol"></span></span><span class="lift-note">light and crisp</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench press</span><span class="lift-rx">2 × 8 — light</span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">2 × 10 @ 55</span></div>
+      <div class="lift-row"><span class="lift-name">Core (optional)</span><span class="lift-rx">whatever feels good</span></div>
+    </div>
+  </div>
+
+  <!-- ── Programming Notes ── -->
+  <div class="section-label" style="margin-top:2rem;">Programming Notes</div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-bench"></span> Bench — Now a Real Lift</div>
+    <p>Bench graduates from rehab protocol to full programming. Heavy day (Tue) runs 5s→5s→4s in block 1, then 4s→3s→2s in block 2. Volume day (Sat) runs 8s in block 1, 6s→6s→5s in block 2. The pain rule stays as a safety net: 0-3/10 during set, baseline by next morning. If a weight doesn't pass the pain rule, drop 10 lbs and rebuild. But the pain rule is no longer the primary programming driver — intensity progression is.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-pullup"></span> Pull-ups — Endurance Path to 20</div>
+    <p>Goal is 20 bodyweight reps. This block focuses on volume accumulation at bodyweight only. Block 1: 3×6 → 3×7 → 4×6. Block 2: 4×7 → 4×8 → 4×8. The progression is reps per set first, then adding sets. No weight added this block. Weighted pull-ups become relevant later — once you can do 12-15 clean reps and want to build a higher strength ceiling to make 20 feel easier. That's 2-3 blocks away.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-squat"></span> Volume Day at 8s</div>
+    <p>Shifted from 6s to 8s based on analysis. The 300-for-reps goal means you need to grind out 5+ reps at a heavy weight. Sets of 8 at moderate load build the muscular endurance and work capacity that makes that possible. Heavy day drives top-end strength with progressively lower reps. The two days now provide sharply different stimuli instead of overlapping in the 4-6 rep zone.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-general"></span> Mid-Cycle Recalculation</div>
+    <p>After week 3, use your top set results to estimate new 1RMs: <strong>est max = weight × (1 + reps / 30)</strong>. Enter these in the Block 2 calculator above. Block 2 uses the same skeleton — same days, same movements — with weights derived from real performance data instead of upfront projections. This eliminates guesswork and lets you correct if you overshot or undershot.</p>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot dot-general"></span> Standing Rules</div>
+    <p><strong>Equipment:</strong> barbell, squat rack, flat bench, pull-up bar. No dumbbells, machines, or cables.</p>
+    <p><strong>RPE:</strong> top sets ~RPE 8. If something feels like a grinder, it's too heavy — drop 5 lbs.</p>
+    <p><strong>Session time:</strong> ≤45 minutes. If running long, cut optional core first, then trim a backoff set.</p>
+    <p><strong>Rows:</strong> still trial-only. Drop if shoulder objects.</p>
+    <p><strong>RDLs:</strong> monitor lower back. If it speaks up, pull them immediately.</p>
+    <p><strong>Knee:</strong> if the right knee ache persists from the previous block, reduce Sat volume load or ensure Mon (not Sun) for heavy squats to add a rest day after volume day.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 5: CURRENT PROGRAM ═══════════════════ -->
+<div class="tab-content" id="tab-current">
+  <h2>Current Block — Mar 22 – May 2, 2026</h2>
+  <p>6-week build. 4 weeks building → 1 week push → 1 week deload. Squat and deadlift as primary movers. Bench press and pull-ups under rehab protocol. Equipment: barbell, squat rack, bench, pull-up bar.</p>
+
+  <div class="section-label">Weekly Schedule</div>
+  <div class="schedule-grid">
+    <div class="sched-card sc-squat">
+      <div class="sched-day">Sun / Mon</div>
+      <div class="sched-title">Heavy Squat</div>
+      <div class="sched-lifts">Back squat — top + backoffs<br>RDLs<br>Pull-up rehab<br>Core (optional)</div>
+    </div>
+    <div class="sched-card sc-upper">
+      <div class="sched-day">Tuesday</div>
+      <div class="sched-title">OHP + Upper</div>
+      <div class="sched-lifts">OHP — top + backoffs<br>Bench rehab #1<br>Barbell rows (trial)</div>
+    </div>
+    <div class="sched-card sc-dead">
+      <div class="sched-day">Thursday</div>
+      <div class="sched-title">Deadlift</div>
+      <div class="sched-lifts">Deadlift — top + backoffs<br>Front squat<br>Pull-up rehab #2</div>
+    </div>
+    <div class="sched-card sc-vol">
+      <div class="sched-day">Saturday</div>
+      <div class="sched-title">Squat Volume</div>
+      <div class="sched-lifts">Back squat — volume<br>Bench rehab #2<br>Good mornings (trial)<br>Core</div>
+    </div>
+  </div>
+
+  <div class="section-label">Progression Overview</div>
+  <table class="overview-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th style="color:var(--accent-squat);">Squat</th>
+        <th style="color:var(--accent-dead);">Deadlift</th>
+        <th style="color:var(--accent-ohp);">OHP</th>
+        <th style="color:var(--accent-squat);">Squat Vol</th>
+        <th style="color:var(--accent-bench);">Bench Rehab</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="wk-label">Wk 1 <span class="wk-dates">Mar 22–28</span></td><td>245×5</td><td>290×4</td><td>110×5</td><td>4×6 @ 200</td><td>100 → 105</td></tr>
+      <tr><td class="wk-label">Wk 2 <span class="wk-dates">Mar 29–Apr 4</span></td><td>250×5</td><td>300×4</td><td>115×5</td><td>4×6 @ 205</td><td>110 → 115</td></tr>
+      <tr><td class="wk-label">Wk 3 <span class="wk-dates">Apr 5–11</span></td><td>255×5</td><td>310×3</td><td>120×4</td><td>4×6 @ 210</td><td>120 → 125</td></tr>
+      <tr><td class="wk-label">Wk 4 <span class="wk-dates">Apr 12–18</span></td><td>260×4</td><td>315×3</td><td>125×3</td><td>3×6 @ 215</td><td>130 → 135</td></tr>
+      <tr><td class="wk-label">Wk 5 <span class="wk-dates">Apr 19–25</span></td><td>265×3-4</td><td>325×2</td><td>130×2-3</td><td>3×5 @ 220</td><td>140 → 145</td></tr>
+      <tr style="color:var(--text-dim);font-style:italic;"><td class="wk-label" style="color:var(--text-dim);">Wk 6 <span class="wk-dates">Apr 26–May 2</span></td><td>single@250</td><td>singles@290-305</td><td>single@120</td><td>3×5 @ 185</td><td>light</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Current Program Week Details -->
+  <div class="section-label" style="margin-top:2rem;">Week-by-Week Detail</div>
+
+  <div class="week-block">
+    <div class="week-header"><div class="week-num">W1</div><div class="week-meta">Mar 22 – 28</div><div class="week-tag week-tag-build">build</div></div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx">245 × 5</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 5 @ 220</span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ 175</span><span class="lift-note">conservative start</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 5-6 — partial ROM</span></div>
+      <div class="lift-row"><span class="lift-name">Plank (optional)</span><span class="lift-rx">2 × 45s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">OHP (top)</span><span class="lift-rx">110 × 5</span></div>
+      <div class="lift-row"><span class="lift-name">OHP (backoff)</span><span class="lift-rx">3 × 5 @ 95</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 100</span><span class="lift-note">pain rule: 0-3/10</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10 — moderate</span><span class="lift-note">trial</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx">290 × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 3 @ 260</span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 6 @ 115</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 5-6 — partial ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 6 @ 200</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 105</span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 65</span><span class="lift-note">trial — very light</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header"><div class="week-num">W2</div><div class="week-meta">Mar 29 – Apr 4</div><div class="week-tag week-tag-build">build</div></div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx">250 × 5</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 5 @ 225</span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ 180</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 5-6 — partial ROM</span></div>
+      <div class="lift-row"><span class="lift-name">Plank</span><span class="lift-rx">2 × 50s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">OHP (top)</span><span class="lift-rx">115 × 5</span></div>
+      <div class="lift-row"><span class="lift-name">OHP (backoff)</span><span class="lift-rx">3 × 5 @ 100</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 110</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx">300 × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 3 @ 270</span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 6 @ 120</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 5-6 — partial ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 6 @ 205</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 115</span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 70</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header"><div class="week-num">W3</div><div class="week-meta">Apr 5 – 11</div><div class="week-tag week-tag-build">build</div></div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx">255 × 5</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 4 @ 230</span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ 185</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 4-5 — extending ROM</span></div>
+      <div class="lift-row"><span class="lift-name">Plank</span><span class="lift-rx">3 × 45s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">OHP (top)</span><span class="lift-rx">120 × 4</span></div>
+      <div class="lift-row"><span class="lift-name">OHP (backoff)</span><span class="lift-rx">3 × 4 @ 105</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 120</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx">310 × 3</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 3 @ 280</span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 6 @ 125</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 4-5 — extending ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">4 × 6 @ 210</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 125</span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 75</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header"><div class="week-num">W4</div><div class="week-meta">Apr 12 – 18</div><div class="week-tag week-tag-build">build</div></div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx">260 × 4</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 4 @ 235</span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ 190</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 4-5 — further ROM</span><span class="lift-note">near-full range</span></div>
+      <div class="lift-row"><span class="lift-name">Plank</span><span class="lift-rx">3 × 50s</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">OHP (top)</span><span class="lift-rx">125 × 3</span></div>
+      <div class="lift-row"><span class="lift-name">OHP (backoff)</span><span class="lift-rx">3 × 3 @ 107.5</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 130</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx">315 × 3</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 2 @ 285</span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 6 @ 130</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 4-5 — further ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">3 × 6 @ 215</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 135</span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 75</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header"><div class="week-num">W5</div><div class="week-meta">Apr 19 – 25</div><div class="week-tag week-tag-push">push</div></div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Heavy Squat + RDLs</div>
+      <div class="lift-row"><span class="lift-name">Back squat (top)</span><span class="lift-rx">265 × 3-4</span><span class="lift-note">block PR territory</span></div>
+      <div class="lift-row"><span class="lift-name">Back squat (backoff)</span><span class="lift-rx">2 × 3 @ 240</span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">3 × 8 @ 195</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 3-4 — near-full ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">OHP (top)</span><span class="lift-rx">130 × 2-3</span></div>
+      <div class="lift-row"><span class="lift-name">OHP (backoff)</span><span class="lift-rx">3 × 3 @ 110</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 140</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">3 × 8-10</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift + Front Squat</div>
+      <div class="lift-row"><span class="lift-name">Deadlift (top)</span><span class="lift-rx">325 × 2</span><span class="lift-note">smooth — no grinding</span></div>
+      <div class="lift-row"><span class="lift-name">Deadlift (backoff)</span><span class="lift-rx">3 × 2 @ 290</span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">3 × 5 @ 135</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">3 × 3-4 — near-full ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Squat Volume + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">3 × 5 @ 220</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">3 × 8 @ 145</span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">3 × 10 @ 75-80</span></div>
+      <div class="lift-row"><span class="lift-name">Dead bug</span><span class="lift-rx">3 × 10/side</span></div>
+    </div>
+  </div>
+
+  <div class="week-block">
+    <div class="week-header"><div class="week-num">W6</div><div class="week-meta">Apr 26 – May 2</div><div class="week-tag week-tag-deload">deload</div></div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-squat"></span> Sun/Mon — Squat Deload</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">1 single @ 250 (RPE 7-8), then 2 × 3 @ 210</span></div>
+      <div class="lift-row"><span class="lift-name">RDL</span><span class="lift-rx">2 × 8 @ 155</span><span class="lift-note">easy</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">2 × 4 — near-full / full ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-ohp"></span> Tue — OHP Deload + Bench Rehab</div>
+      <div class="lift-row"><span class="lift-name">OHP</span><span class="lift-rx">1 single @ 120 (RPE 7), then 2 × 5 @ 95</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">2 × 8 — light</span><span class="lift-note">maintain</span></div>
+      <div class="lift-row"><span class="lift-name">Barbell rows</span><span class="lift-rx">2 × 10 — easy</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-dead"></span> Thu — Deadlift Deload</div>
+      <div class="lift-row"><span class="lift-name">Deadlift</span><span class="lift-rx">3–5 singles @ 290–305 (RPE 7-8, fast)</span></div>
+      <div class="lift-row"><span class="lift-name">Front squat</span><span class="lift-rx">2 × 5 @ 105</span><span class="lift-note">easy</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Pull-ups <span class="tag tag-pullup">rehab</span></span><span class="lift-rx">2 × 4 — full or near-full ROM</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-vol"></span> Sat — Easy Pump + Mobility</div>
+      <div class="lift-row"><span class="lift-name">Back squat</span><span class="lift-rx">3 × 5 @ 185</span><span class="lift-note">light and crisp</span></div>
+      <hr class="lift-sep">
+      <div class="lift-row"><span class="lift-name">Bench <span class="tag tag-bench">rehab</span></span><span class="lift-rx">2 × 8 — light</span></div>
+      <div class="lift-row"><span class="lift-name">Good mornings</span><span class="lift-rx">2 × 10 @ 55</span></div>
+      <div class="lift-row"><span class="lift-name">Core (optional)</span><span class="lift-rx">whatever feels good</span></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end container -->
+
+<script>
+// ── Tab Switching ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Utility ──
+function r5(n) { return Math.round(n / 5) * 5; }
+function setAll(cls, val) {
+  document.querySelectorAll('.' + cls).forEach(el => el.textContent = val);
+}
+
+// ── Block 1 Calculator ──
+function calcBlock1() {
+  const sq = parseFloat(document.getElementById('sq-max').value) || 295;
+  const dl = parseFloat(document.getElementById('dl-max').value) || 350;
+  const ohp = parseFloat(document.getElementById('ohp-max').value) || 145;
+  const bn = parseFloat(document.getElementById('bn-max').value) || 170;
+
+  // Heavy squat: W1 85%×5, W2 87.5%×4, W3 90%×3
+  setAll('b1-sq-h1', r5(sq * 0.85));
+  setAll('b1-sq-h2', r5(sq * 0.875));
+  setAll('b1-sq-h3', r5(sq * 0.90));
+  // Squat backoffs
+  setAll('b1-sq-bo1', r5(sq * 0.76));
+  setAll('b1-sq-bo2', r5(sq * 0.79));
+  setAll('b1-sq-bo3', r5(sq * 0.81));
+  // Squat volume (8s)
+  setAll('b1-sq-v1', r5(sq * 0.66));
+  setAll('b1-sq-v2', r5(sq * 0.68));
+  setAll('b1-sq-v3', r5(sq * 0.70));
+
+  // Deadlift: W1 86%×4, W2 89%×3, W3 91%×2
+  setAll('b1-dl-h1', r5(dl * 0.86));
+  setAll('b1-dl-h2', r5(dl * 0.89));
+  setAll('b1-dl-h3', r5(dl * 0.91));
+  setAll('b1-dl-bo1', r5(dl * 0.77));
+  setAll('b1-dl-bo2', r5(dl * 0.80));
+  setAll('b1-dl-bo3', r5(dl * 0.83));
+
+  // OHP: W1 81%×5, W2 85%×4, W3 90%×3
+  setAll('b1-ohp-h1', r5(ohp * 0.81));
+  setAll('b1-ohp-h2', r5(ohp * 0.85));
+  setAll('b1-ohp-h3', r5(ohp * 0.90));
+  setAll('b1-ohp-bo1', r5(ohp * 0.69));
+  setAll('b1-ohp-bo2', r5(ohp * 0.72));
+  setAll('b1-ohp-bo3', r5(ohp * 0.77));
+
+  // Bench heavy: W1 88%×5, W2 91%×5, W3 94%×4
+  setAll('b1-bn-h1', r5(bn * 0.88));
+  setAll('b1-bn-h2', r5(bn * 0.91));
+  setAll('b1-bn-h3', r5(bn * 0.94));
+  // Bench volume: W1 76%×8, W2 79%×8, W3 82%×8
+  setAll('b1-bn-v1', r5(bn * 0.76));
+  setAll('b1-bn-v2', r5(bn * 0.79));
+  setAll('b1-bn-v3', r5(bn * 0.82));
+
+  // RDLs (from DL max): ~54%, 56%, 57%
+  setAll('b1-rdl1', r5(dl * 0.54));
+  setAll('b1-rdl2', r5(dl * 0.56));
+  setAll('b1-rdl3', r5(dl * 0.57));
+
+  // Front squats (from SQ max): ~44%, 46%, 47%
+  setAll('b1-fs1', r5(sq * 0.44));
+  setAll('b1-fs2', r5(sq * 0.46));
+  setAll('b1-fs3', r5(sq * 0.47));
+
+  // Set deload defaults from block 1 maxes
+  setDeload(sq, dl, ohp);
+
+  document.getElementById('calc1-output').textContent = 
+    'Block 1 calculated — Squat ' + r5(sq*0.85) + '→' + r5(sq*0.90) + 
+    ', DL ' + r5(dl*0.86) + '→' + r5(dl*0.91) +
+    ', OHP ' + r5(ohp*0.81) + '→' + r5(ohp*0.90) +
+    ', Bench ' + r5(bn*0.88) + '→' + r5(bn*0.94);
+}
+
+// ── Block 2 Calculator ──
+function calcBlock2() {
+  const sqWt = parseFloat(document.getElementById('sq-w3-wt').value);
+  const sqReps = parseFloat(document.getElementById('sq-w3-reps').value);
+  const dlWt = parseFloat(document.getElementById('dl-w3-wt').value);
+  const dlReps = parseFloat(document.getElementById('dl-w3-reps').value);
+  const ohpWt = parseFloat(document.getElementById('ohp-w3-wt').value);
+  const ohpReps = parseFloat(document.getElementById('ohp-w3-reps').value);
+  const bnWt = parseFloat(document.getElementById('bn-w3-wt').value);
+  const bnReps = parseFloat(document.getElementById('bn-w3-reps').value);
+
+  if (!sqWt || !sqReps || !dlWt || !dlReps || !ohpWt || !ohpReps || !bnWt || !bnReps) {
+    document.getElementById('calc2-output').textContent = 'Please fill in all fields.';
+    return;
+  }
+
+  // est max = weight × (1 + reps/30)
+  const sq = sqWt * (1 + sqReps / 30);
+  const dl = dlWt * (1 + dlReps / 30);
+  const ohp = ohpWt * (1 + ohpReps / 30);
+  const bn = bnWt * (1 + bnReps / 30);
+
+  // Heavy squat: W4 88%×4, W5 91%×3, W6 94%×2
+  setAll('b2-sq-h4', r5(sq * 0.88));
+  setAll('b2-sq-h5', r5(sq * 0.91));
+  setAll('b2-sq-h6', r5(sq * 0.94));
+  setAll('b2-sq-bo4', r5(sq * 0.80));
+  setAll('b2-sq-bo5', r5(sq * 0.83));
+  setAll('b2-sq-bo6', r5(sq * 0.85));
+  // Squat volume (6s)
+  setAll('b2-sq-v4', r5(sq * 0.72));
+  setAll('b2-sq-v5', r5(sq * 0.74));
+  setAll('b2-sq-v6', r5(sq * 0.76));
+
+  // Deadlift: W4 89%×3, W5 92%×2, W6 94%×1-2
+  setAll('b2-dl-h4', r5(dl * 0.89));
+  setAll('b2-dl-h5', r5(dl * 0.92));
+  setAll('b2-dl-h6', r5(dl * 0.94));
+  setAll('b2-dl-bo4', r5(dl * 0.81));
+  setAll('b2-dl-bo5', r5(dl * 0.84));
+  setAll('b2-dl-bo6', r5(dl * 0.86));
+
+  // OHP: W4 85%×4, W5 90%×3, W6 93%×2
+  setAll('b2-ohp-h4', r5(ohp * 0.85));
+  setAll('b2-ohp-h5', r5(ohp * 0.90));
+  setAll('b2-ohp-h6', r5(ohp * 0.93));
+  setAll('b2-ohp-bo4', r5(ohp * 0.73));
+  setAll('b2-ohp-bo5', r5(ohp * 0.77));
+  setAll('b2-ohp-bo6', r5(ohp * 0.80));
+
+  // Bench heavy: W4 91%×4, W5 94%×3, W6 97%×2
+  setAll('b2-bn-h4', r5(bn * 0.91));
+  setAll('b2-bn-h5', r5(bn * 0.94));
+  setAll('b2-bn-h6', r5(bn * 0.97));
+  // Bench volume: W4 82%×6, W5 85%×6, W6 87%×5
+  setAll('b2-bn-v4', r5(bn * 0.82));
+  setAll('b2-bn-v5', r5(bn * 0.85));
+  setAll('b2-bn-v6', r5(bn * 0.87));
+
+  // RDLs
+  setAll('b2-rdl4', r5(dl * 0.57));
+  setAll('b2-rdl5', r5(dl * 0.58));
+  setAll('b2-rdl6', r5(dl * 0.60));
+
+  // Front squats
+  setAll('b2-fs4', r5(sq * 0.47));
+  setAll('b2-fs5', r5(sq * 0.49));
+  setAll('b2-fs6', r5(sq * 0.50));
+
+  // Update deload from new maxes
+  setDeload(sq, dl, ohp);
+
+  document.getElementById('calc2-output').textContent = 
+    'Block 2 calculated — New est maxes: Squat ' + r5(sq) + 
+    ', DL ' + r5(dl) + ', OHP ' + r5(ohp) + ', Bench ' + r5(bn);
+}
+
+function setDeload(sq, dl, ohp) {
+  setAll('dl-sq', r5(sq * 0.85));
+  setAll('dl-sq-bo', r5(sq * 0.71));
+  setAll('dl-sq-vol', r5(sq * 0.63));
+  setAll('dl-rdl', r5(dl * 0.44));
+  setAll('dl-ohp', r5(ohp * 0.83));
+  setAll('dl-ohp-bo', r5(ohp * 0.66));
+  setAll('dl-dl', r5(dl * 0.83) + '–' + r5(dl * 0.87));
+  setAll('dl-fs', r5(sq * 0.36));
+}
+
+// Run Block 1 calc on load with default values
+calcBlock1();
+</script>
+</body>
+</html>
